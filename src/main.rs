@@ -1,41 +1,58 @@
-use std::io::stdin; 
+use std::env; 
+use std::fs; 
 use colorized::*; 
 
 fn main() {
-    let stdin = stdin();
-    let mut input = String::new(); 
-
-    stdin.read_line(&mut input).unwrap(); 
-
-    let matches = check_string(&input); 
+    let args: Vec<String> = env::args().collect(); 
+    let path = &args[1]; 
+    let pattern = &args[2..].join(" "); 
     
-    if matches.is_empty() {
-        println!("The regex was not found in {}", input); 
-        std::process::exit(0)
-    }  
+    let file_content = fs::read_to_string(path) 
+        .expect("An error ocurred trying to read the file"); 
+    
+    let mut counter = 1; // counter accesing lines
+    
+    for line in file_content.lines() {
+        let match_line = check_string(line, pattern); 
 
-    println!("> {}", matches)
+        if !match_line.is_empty() {
+            println!("[{}] {}", counter, match_line); 
+        } 
+
+        counter += 1; 
+    }
 }
 
-fn check_string(input: &String) -> String {
-    let to_match = "hola";
-
-    let mut matches = String::from("Not found"); 
+fn check_string(input: &str, pattern: &str) -> String {
+    let offset = 14; 
+    let mut matches = String::new(); 
 
     for i in 0..input.len() {
         // avoid out of bounds
-        if i+to_match.len() > input.len() {
+        if i+pattern.len() > input.len() {
             continue;
         }
 
-        let current_slice = &input[i..i+to_match.len()]; 
+        let current_slice = &input[i..i+pattern.len()]; 
 
-        if to_match == current_slice {
-            let pre_string = &input[..i]; 
-            let post_string = &input[i+to_match.len()..]; 
+        if pattern == current_slice {
+            // check if the offset is bigger than the 
+            // string slice pre-side
+            let pre_string = if offset > input[..i].len() {
+                &input[..i] 
+            } else {
+                &input[i-offset..i]
+            };
+            
+            let post_string = if offset > input[i..].len() {
+                &input[i..] 
+            } else {
+                &input[i+pattern.len()..i+offset]
+            };
+
             let center = colorize_this(current_slice, Colors::BlueFg); 
 
-            let formatted_string = format!("{}{}{}", pre_string, center, post_string); 
+            let formatted_string = format!("…{}{}{}…", pre_string, center, post_string); 
             matches = formatted_string; 
             break; 
         }
